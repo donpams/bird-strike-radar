@@ -119,6 +119,7 @@ def clean(raw: pd.DataFrame) -> pd.DataFrame:
     out["injuries"] = _to_num(df["NR_INJURIES"]).fillna(0).astype("Int64")
     out["fatalities"] = _to_num(df["NR_FATALITIES"]).fillna(0).astype("Int64")
     out["cost_repairs_usd_adj"] = _to_num(df["COST_REPAIRS_INFL_ADJ"])
+    out["cost_other_usd_adj"] = _to_num(df["COST_OTHER_INFL_ADJ"])
     out["aircraft_out_of_service_hr"] = _to_num(df["AOS"])
 
     # --- wildlife -----------------------------------------------------------

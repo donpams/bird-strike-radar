@@ -29,5 +29,5 @@ uv run pytest
 
 - [x] Week 0: repo, data downloads
 - [x] Week 1: ingest, airport selection, [data quality report](reports/week1_data_quality.md)
-- [ ] Week 2: baseline rates + MIL-STD-882E risk logic
+- [x] Week 2: empirical-Bayes baseline + MIL-STD-882E risk logic, [report](reports/week2_baseline_and_risk.md)
 - [ ] Week 3: minimum map on GitHub Pages
