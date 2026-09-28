@@ -1,13 +1,40 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Bird, CalendarDays, ChevronsLeft, ChevronsRight, Clock, Flame, House, Info, Map as MapIcon,
   Pause, Play, Route, Sheet, Table2, X,
 } from "lucide-react";
 import {
-  BINS, fmtInt, fmtRate, fmtRel, isDistinct, LEVELS, MONTHS, MONTHS_LONG, RISK_COLORS, SEVERITY_NAMES,
+  fmtInt, LEGEND_GRADIENT, legendPos, prefersReducedMotion, fmtRate, fmtRel, isDistinct, LEVELS, MONTHS, MONTHS_LONG, RISK_COLORS, SEVERITY_NAMES,
 } from "../scale.js";
 
 const REPO = "https://github.com/donpams/bird-strike-radar";
+
+// Numbers glide to their new value instead of snapping (skipped for reduced motion)
+function useTween(value, ms = 450) {
+  const [v, setV] = useState(value);
+  const from = useRef(value);
+  useEffect(() => {
+    if (value == null || prefersReducedMotion()) { setV(value); from.current = value; return; }
+    const a = from.current ?? value;
+    const start = performance.now();
+    let raf = 0;
+    const step = (now) => {
+      const f = Math.min(1, (now - start) / ms);
+      const e = 1 - Math.pow(1 - f, 3);
+      const cur = a + (value - a) * e;
+      from.current = cur;
+      setV(cur);
+      if (f < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [value, ms]);
+  return v;
+}
+
+function Num({ value, format }) {
+  return <>{format(useTween(value))}</>;
+}
 const fmtDate = (iso) =>
   new Date(`${iso}T12:00:00`).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
 
@@ -127,20 +154,21 @@ export function DetailPanel({ data, airport, month, mode, onClear, onShowTable }
       </header>
       {airport && <p className="sub">{airport.icao} &middot; {airport.city}, {airport.state}</p>}
 
+      <div className="fade" key={airport ? airport.icao : "national"}>
       <h3>Summary</h3>
       {!airport ? (
         <p className="muted">
           Estimated damaging bird strikes per {fmtInt(data.meta.exposureOps)} operations at{" "}
-          {data.meta.airportCount} US commercial airports in {MONTHS_LONG[month]}: <b>{fmtRate(nat)}</b> nationally.{" "}
+          {data.meta.airportCount} US commercial airports in {MONTHS_LONG[month]}: <b><Num value={nat} format={fmtRate} /></b> nationally.{" "}
           {aboveCount} airports are clearly above that this month. Circles are sized by traffic and coloured against
           the national rate. Click one for detail.
         </p>
       ) : (
         <>
           <p className="muted">
-            {MONTHS_LONG[month]}: an estimated <b>{fmtRate(m.r)}</b> damaging strikes per{" "}
-            {fmtInt(data.meta.exposureOps)} operations (90% interval {fmtRate(m.lo)}-{fmtRate(m.hi)}),{" "}
-            <b>{fmtRel(m.rel)}</b> the national rate.{" "}
+            {MONTHS_LONG[month]}: an estimated <b><Num value={m.r} format={fmtRate} /></b> damaging strikes per{" "}
+            {fmtInt(data.meta.exposureOps)} operations (90% interval <Num value={m.lo} format={fmtRate} />-<Num value={m.hi} format={fmtRate} />),{" "}
+            <b><Num value={m.rel} format={fmtRel} /></b> the national rate.{" "}
             {isDistinct(m)
               ? m.rel > 1 ? "Clearly above national." : "Clearly below national."
               : "Not distinguishable from the national rate."}
@@ -160,6 +188,7 @@ export function DetailPanel({ data, airport, month, mode, onClear, onShowTable }
         {m && m.riskLo !== m.riskHi && <span className="muted small">range {m.riskLo}-{m.riskHi}</span>}
       </div>
       <RiskMatrix data={data} levels={levels} />
+      </div>
 
       <h3>Details</h3>
       <ul className="details">
@@ -184,45 +213,123 @@ export function DetailPanel({ data, airport, month, mode, onClear, onShowTable }
 }
 
 // ---------------------------------------------------------------- legend
+const TICKS = [0.5, 0.8, 1, 1.25, 2];
+
 export function Legend({ mode, month }) {
   return (
     <div className="card legend">
       <h4>{mode === "raw" ? "Raw" : "Estimated"} damaging-strike rate vs national ({MONTHS[month]})</h4>
-      <div className="swatches">
-        {BINS.map((b) => (
-          <span key={b.label}><i style={{ background: b.color }} />{b.label}</span>
+      <div className="gradient" style={{ background: LEGEND_GRADIENT }} aria-hidden="true" />
+      <div className="gradient-ticks" aria-label="Scale: under 0.5x to 2x or more the national rate">
+        {TICKS.map((v) => (
+          <span key={v} className={v === 0.8 || v === 1.25 ? "minor" : ""} style={{ left: `${legendPos(v) * 100}%` }}>
+            {v === 1 ? "national" : v === 0.8 || v === 1.25 ? "" : `${v}x`}
+          </span>
         ))}
       </div>
       <p>
         {mode === "raw"
           ? "Each airport's own counts, no pooling: small airports swing wildly."
-          : "Faded: 90% interval overlaps the national rate. Size = traffic."}
+          : "Rings pulse where the rate is clearly above national. Faded: within the noise. Size = traffic."}
       </p>
     </div>
   );
 }
 
 // ---------------------------------------------------------------- month slider
-export function MonthSlider({ month, onChange }) {
+const MS_PER_MONTH = 1400; // playback speed
+const ease = (f) => (f < 0.5 ? 4 * f * f * f : 1 - Math.pow(-2 * f + 2, 3) / 2); // easeInOutCubic
+
+// National seasonality drawn behind the track: a small "alive" hint of the migration peaks
+function Sparkline({ rates }) {
+  const max = Math.max(...rates);
+  const pts = [...rates, rates[0]].map((r, i) => [(i / 12) * 100, 28 - (r / max) * 24]);
+  const line = pts.map(([x, y], i) => `${i ? "L" : "M"}${x.toFixed(2)},${y.toFixed(2)}`).join(" ");
+  return (
+    <svg className="spark" viewBox="0 0 100 30" preserveAspectRatio="none" aria-hidden="true">
+      <path d={`${line} L100,30 L0,30 Z`} className="spark-area" />
+      <path d={line} className="spark-line" vectorEffect="non-scaling-stroke" />
+    </svg>
+  );
+}
+
+export function MonthSlider({ month, national, onChange, onFloat }) {
+  const [x, setX] = useState(month); // fractional month shown by the thumb
   const [playing, setPlaying] = useState(false);
+  const xRef = useRef(month);
+  const anim = useRef(0);
+
+  const apply = (v) => {
+    const w = ((v % 12) + 12) % 12;
+    xRef.current = w;
+    setX(w);
+    onFloat(w);
+    const m = Math.round(w) % 12;
+    if (m !== month) onChange(m);
+  };
+
+  // Smoothly glide to a whole month (used after dragging and for keyboard steps)
+  const glideTo = (target, ms = 380) => {
+    cancelAnimationFrame(anim.current);
+    const from = xRef.current;
+    let to = target;
+    if (to - from > 6) to -= 12; // take the short way round Dec <-> Jan
+    if (from - to > 6) to += 12;
+    const start = performance.now();
+    const step = (now) => {
+      const f = Math.min(1, (now - start) / ms);
+      apply(from + (to - from) * ease(f));
+      if (f < 1) anim.current = requestAnimationFrame(step);
+    };
+    anim.current = requestAnimationFrame(step);
+  };
+
+  // Continuous playback: each month eases into the next, with a short hold on each month
   useEffect(() => {
     if (!playing) return;
-    const t = setInterval(() => onChange((m) => (m + 1) % 12), 1100);
-    return () => clearInterval(t);
-  }, [playing, onChange]);
+    let start = performance.now();
+    let from = Math.round(xRef.current);
+    const hold = prefersReducedMotion() ? 0 : 0.25;
+    const step = (now) => {
+      let f = (now - start) / MS_PER_MONTH;
+      if (f >= 1) {
+        from = (from + 1) % 12;
+        start = now;
+        f = 0;
+      }
+      const g = f < hold ? 0 : (f - hold) / (1 - hold);
+      apply(from + ease(g));
+      anim.current = requestAnimationFrame(step);
+    };
+    anim.current = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(anim.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playing]);
 
+  useEffect(() => () => cancelAnimationFrame(anim.current), []);
+
+  const shown = Math.round(x) % 12;
   return (
     <div className="card slider">
       <button className="play" onClick={() => setPlaying((p) => !p)} aria-label={playing ? "Pause" : "Play months"}>
         {playing ? <Pause size={16} /> : <Play size={16} />}
       </button>
       <div className="slider-body">
-        <div className="slider-label">{MONTHS_LONG[month]}</div>
-        <input
-          type="range" min="0" max="11" step="1" value={month}
-          onChange={(e) => { setPlaying(false); onChange(Number(e.target.value)); }}
-          aria-label="Month"
-        />
+        <div className="slider-label">
+          <span className="month-name" key={shown}>{MONTHS_LONG[shown]}</span>
+          <span className="muted small">national {fmtRate(national[shown])} per 10k ops</span>
+        </div>
+        <div className="track">
+          <Sparkline rates={national} />
+          <input
+            type="range" min="0" max="11.99" step="0.01" value={x}
+            onChange={(e) => { setPlaying(false); cancelAnimationFrame(anim.current); apply(Number(e.target.value)); }}
+            onPointerUp={() => glideTo(Math.round(xRef.current) % 12)}
+            onKeyUp={() => glideTo(Math.round(xRef.current) % 12)}
+            aria-label="Month"
+            aria-valuetext={MONTHS_LONG[shown]}
+          />
+        </div>
         <div className="ticks">{MONTHS.map((m) => <span key={m}>{m[0]}</span>)}</div>
       </div>
     </div>

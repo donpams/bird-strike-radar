@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { ArrowUpDown, X } from "lucide-react";
-import { binColor, fmtInt, fmtRate, fmtRel, isDistinct, MONTHS_LONG, RISK_COLORS } from "../scale.js";
+import { relColor, fmtInt, fmtRate, fmtRel, isDistinct, MONTHS_LONG, RISK_COLORS } from "../scale.js";
 
 const COLS = [
   { key: "icao", label: "Airport", get: (a) => a.icao },
@@ -58,7 +58,7 @@ export default function DataTable({ data, month, onClose, onPick }) {
                     <td>{a.icao}</td>
                     <td className="name">{a.name}</td>
                     <td className="num">
-                      <i className="dot" style={{ background: binColor(m.rel) }} />
+                      <i className="dot" style={{ background: relColor(m.rel) }} />
                       {fmtRate(m.r)} {isDistinct(m) ? "" : "○"}
                     </td>
                     <td className="num">{fmtRate(m.lo)}-{fmtRate(m.hi)}</td>

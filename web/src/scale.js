@@ -40,3 +40,55 @@ export const isDistinct = (m) => m.rlo > 1 || m.rhi < 1;
 export function rawRelative(m, nationalRate) {
   return nationalRate > 0 ? m.raw / nationalRate : null;
 }
+
+// ---------------------------------------------------------------------------------------
+// Continuous version of the same diverging scale, used so colours glide between months
+// instead of snapping. Anchors sit at the centres of the bins above, on a log scale.
+const ANCHORS = [
+  [0.35, [0x4f, 0x5f, 0xcf]],
+  [0.65, [0x8f, 0x9a, 0xe0]],
+  [1.0, [0xbd, 0xbc, 0xb5]],
+  [1.55, [0xe0, 0x7b, 0x39]],
+  [2.6, [0xd7, 0x30, 0x1f]],
+];
+export const SCALE_MIN = ANCHORS[0][0];
+export const SCALE_MAX = ANCHORS[ANCHORS.length - 1][0];
+
+export function relColor(rel) {
+  if (rel == null || Number.isNaN(rel)) return "#dddcd6";
+  const x = Math.min(Math.max(rel, SCALE_MIN), SCALE_MAX);
+  for (let i = 0; i < ANCHORS.length - 1; i++) {
+    const [a, ca] = ANCHORS[i];
+    const [b, cb] = ANCHORS[i + 1];
+    if (x <= b) {
+      const f = (Math.log(x) - Math.log(a)) / (Math.log(b) - Math.log(a));
+      const c = ca.map((v, k) => Math.round(v + (cb[k] - v) * f));
+      return `rgb(${c[0]},${c[1]},${c[2]})`;
+    }
+  }
+  return "#d7301f";
+}
+
+// Position (0-1) of a relative rate along the legend bar
+export const legendPos = (rel) =>
+  (Math.log(rel) - Math.log(SCALE_MIN)) / (Math.log(SCALE_MAX) - Math.log(SCALE_MIN));
+
+export const LEGEND_GRADIENT = `linear-gradient(90deg, ${ANCHORS.map(
+  ([r, c]) => `rgb(${c.join(",")}) ${(legendPos(r) * 100).toFixed(1)}%`,
+).join(", ")})`;
+
+// Interpolate between month i and i+1 (wrapping Dec -> Jan) in log space
+export function lerpLog(a, b, f) {
+  if (a == null || b == null || a <= 0 || b <= 0) return f < 0.5 ? a : b;
+  return Math.exp(Math.log(a) * (1 - f) + Math.log(b) * f);
+}
+
+export const prefersReducedMotion = () =>
+  typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+
+// Stable pseudo-random phase per airport so they don't all breathe in sync
+export function phaseOf(id) {
+  let h = 2166136261;
+  for (const ch of id) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
+  return ((h >>> 0) / 4294967295) * Math.PI * 2;
+}

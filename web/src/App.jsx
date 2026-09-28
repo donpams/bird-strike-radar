@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import MapView from "./components/MapView.jsx";
 import { DetailPanel, Legend, MonthSlider, TitleCard, Toolbar } from "./components/Panels.jsx";
 import DataTable from "./components/DataTable.jsx";
@@ -16,6 +16,7 @@ export default function App() {
   const [collapsed, setCollapsed] = useState(() => window.innerWidth < 720);
   const [showTable, setShowTable] = useState(false);
   const [resetKey, setResetKey] = useState(0);
+  const mapRef = useRef(null);
 
   useEffect(() => {
     fetch(DATA_URL)
@@ -43,6 +44,7 @@ export default function App() {
   return (
     <div className="app">
       <MapView
+        ref={mapRef}
         data={data}
         month={month}
         mode={mode}
@@ -72,7 +74,14 @@ export default function App() {
       </div>
 
       {data && <Legend mode={mode} month={month} />}
-      {data && <MonthSlider month={month} onChange={setMonth} />}
+      {data && (
+        <MonthSlider
+          month={month}
+          national={data.national.rate}
+          onChange={setMonth}
+          onFloat={(x) => mapRef.current?.setMonthFloat(x)}
+        />
+      )}
 
       {showTable && data && (
         <DataTable
