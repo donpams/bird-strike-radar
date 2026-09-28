@@ -14,7 +14,7 @@ const COLS = [
   { key: "risk", label: "882E risk", get: (a, m) => ["Low", "Medium", "Serious", "High"].indexOf(m.risk), num: true },
 ];
 
-export default function DataTable({ data, month, onClose, onPick }) {
+export default function DataTable({ data, month, theme, onClose, onPick }) {
   const [sort, setSort] = useState({ key: "r", desc: true });
   const rows = useMemo(() => {
     const col = COLS.find((c) => c.key === sort.key);
@@ -28,7 +28,7 @@ export default function DataTable({ data, month, onClose, onPick }) {
 
   return (
     <div className="overlay" role="dialog" aria-modal="true" aria-label="Data table" onClick={onClose}>
-      <div className="card table-card" onClick={(e) => e.stopPropagation()}>
+      <div className="glass table-card" onClick={(e) => e.stopPropagation()}>
         <header>
           <h2>All study airports, {MONTHS_LONG[month]}</h2>
           <button className="icon-btn" onClick={onClose} aria-label="Close table"><X size={18} /></button>
@@ -58,7 +58,7 @@ export default function DataTable({ data, month, onClose, onPick }) {
                     <td>{a.icao}</td>
                     <td className="name">{a.name}</td>
                     <td className="num">
-                      <i className="dot" style={{ background: relColor(m.rel) }} />
+                      <i className="dot" style={{ background: relColor(m.rel, theme) }} />
                       {fmtRate(m.r)} {isDistinct(m) ? "" : "○"}
                     </td>
                     <td className="num">{fmtRate(m.lo)}-{fmtRate(m.hi)}</td>

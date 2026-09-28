@@ -42,40 +42,52 @@ export function rawRelative(m, nationalRate) {
 }
 
 // ---------------------------------------------------------------------------------------
-// Continuous version of the same diverging scale, used so colours glide between months
-// instead of snapping. Anchors sit at the centres of the bins above, on a log scale.
-const ANCHORS = [
-  [0.35, [0x4f, 0x5f, 0xcf]],
-  [0.65, [0x8f, 0x9a, 0xe0]],
-  [1.0, [0xbd, 0xbc, 0xb5]],
-  [1.55, [0xe0, 0x7b, 0x39]],
-  [2.6, [0xd7, 0x30, 0x1f]],
-];
-export const SCALE_MIN = ANCHORS[0][0];
-export const SCALE_MAX = ANCHORS[ANCHORS.length - 1][0];
+// Continuous version of the diverging scale, used so colours glide between months.
+// Anchors sit at the centres of the bins above, on a log scale. Night mode uses brighter
+// steps so the scale keeps its contrast against the dark basemap.
+const ANCHORS = {
+  light: [
+    [0.35, [0x3f, 0x55, 0xc9]],
+    [0.65, [0x8c, 0x98, 0xdf]],
+    [1.0, [0xbd, 0xbc, 0xb5]],
+    [1.55, [0xe0, 0x7b, 0x39]],
+    [2.6, [0xd7, 0x30, 0x1f]],
+  ],
+  dark: [
+    [0.35, [0x5b, 0x7c, 0xff]],
+    [0.65, [0x86, 0x9c, 0xd8]],
+    [1.0, [0x6f, 0x74, 0x7e]],
+    [1.55, [0xff, 0x9a, 0x4a]],
+    [2.6, [0xff, 0x4d, 0x3a]],
+  ],
+};
+export const SCALE_MIN = 0.35;
+export const SCALE_MAX = 2.6;
 
-export function relColor(rel) {
-  if (rel == null || Number.isNaN(rel)) return "#dddcd6";
+export function relColor(rel, theme = "light") {
+  const anchors = ANCHORS[theme] || ANCHORS.light;
+  if (rel == null || Number.isNaN(rel)) return theme === "dark" ? "#3a3f47" : "#dddcd6";
   const x = Math.min(Math.max(rel, SCALE_MIN), SCALE_MAX);
-  for (let i = 0; i < ANCHORS.length - 1; i++) {
-    const [a, ca] = ANCHORS[i];
-    const [b, cb] = ANCHORS[i + 1];
+  for (let i = 0; i < anchors.length - 1; i++) {
+    const [a, ca] = anchors[i];
+    const [b, cb] = anchors[i + 1];
     if (x <= b) {
       const f = (Math.log(x) - Math.log(a)) / (Math.log(b) - Math.log(a));
       const c = ca.map((v, k) => Math.round(v + (cb[k] - v) * f));
       return `rgb(${c[0]},${c[1]},${c[2]})`;
     }
   }
-  return "#d7301f";
+  return `rgb(${anchors[anchors.length - 1][1].join(",")})`;
 }
 
 // Position (0-1) of a relative rate along the legend bar
 export const legendPos = (rel) =>
   (Math.log(rel) - Math.log(SCALE_MIN)) / (Math.log(SCALE_MAX) - Math.log(SCALE_MIN));
 
-export const LEGEND_GRADIENT = `linear-gradient(90deg, ${ANCHORS.map(
-  ([r, c]) => `rgb(${c.join(",")}) ${(legendPos(r) * 100).toFixed(1)}%`,
-).join(", ")})`;
+export const legendGradient = (theme = "light") =>
+  `linear-gradient(90deg, ${(ANCHORS[theme] || ANCHORS.light)
+    .map(([r, c]) => `rgb(${c.join(",")}) ${(legendPos(r) * 100).toFixed(1)}%`)
+    .join(", ")})`;
 
 // Interpolate between month i and i+1 (wrapping Dec -> Jan) in log space
 export function lerpLog(a, b, f) {
