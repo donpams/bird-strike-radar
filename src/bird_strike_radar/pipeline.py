@@ -2,6 +2,7 @@
 
 from . import (
     baseline,
+    export_web,
     ingest_airports,
     ingest_atads,
     ingest_strikes,
@@ -21,6 +22,8 @@ def main() -> None:
     # Week 2: baseline rates + MIL-STD-882E risk
     baseline.run()
     report_week2.run()
+    # Week 3: static data for the web map (web/public/data/radar.json)
+    export_web.run()
 
 
 if __name__ == "__main__":

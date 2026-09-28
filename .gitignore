@@ -4,3 +4,4 @@ data/processed/
 __pycache__/
 .ipynb_checkpoints/
 node_modules/
+web/dist/

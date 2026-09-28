@@ -4,6 +4,8 @@ An interactive map of bird-strike risk at US commercial airports, treated as a *
 a model estimates the likelihood of a damaging strike by airport, month, time of day and altitude band,
 with uncertainty, and classifies it with the public MIL-STD-882E risk matrix.
 
+**Live map: https://donpams.github.io/bird-strike-radar/**
+
 Built only on public data. Not affiliated with any employer or program. **Not for operational use.**
 
 ## Data sources
@@ -23,6 +25,9 @@ Raw and processed data are not committed. See the download steps in `docs/` (com
 uv sync
 uv run python -m bird_strike_radar.pipeline   # raw -> data/processed/*.parquet + reports/
 uv run pytest
+
+# the map
+cd web && npm install && npm run dev      # http://localhost:5173/bird-strike-radar/
 ```
 
 ## Progress
@@ -30,4 +35,4 @@ uv run pytest
 - [x] Week 0: repo, data downloads
 - [x] Week 1: ingest, airport selection, [data quality report](reports/week1_data_quality.md)
 - [x] Week 2: empirical-Bayes baseline + MIL-STD-882E risk logic, [report](reports/week2_baseline_and_risk.md)
-- [ ] Week 3: minimum map on GitHub Pages
+- [x] Week 3: minimum map on GitHub Pages (`web/`: React + MapLibre, deployed by `.github/workflows/deploy.yml`)
