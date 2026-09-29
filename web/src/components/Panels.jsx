@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import {
-  Flame, House, Map as MapIcon, Moon, PanelRightClose, PanelRightOpen, Pause, Play, Route, Sun, SunMoon,
+  Check, Compass, Flame, House, Link2, Map as MapIcon, Moon, PanelRightClose, PanelRightOpen, Pause, Play, Route, Sun, SunMoon,
   Table2, X,
 } from "lucide-react";
 import {
   fmtInt, fmtRate, fmtRel, isDistinct, legendGradient, legendPos, LEVELS, MONTHS, MONTHS_LONG,
   prefersReducedMotion, RISK_COLORS, SEVERITY_NAMES,
 } from "../scale.js";
+import { airportStory, nationalStory, SEASON } from "../story.js";
 
 const REPO = "https://github.com/donpams/bird-strike-radar";
 const fmtDate = (iso) =>
@@ -86,7 +87,7 @@ const THEME_ICON = { auto: SunMoon, light: Sun, dark: Moon };
 const THEME_LABEL = { auto: "Auto", light: "Day", dark: "Night" };
 const THEME_TITLE = { auto: "Auto: day or night by your clock", light: "Day", dark: "Night" };
 
-export function Dock({ active, onTool, themeMode, onTheme, inspectorOpen, onToggleInspector }) {
+export function Dock({ active, onTool, themeMode, onTheme, inspectorOpen, onToggleInspector, onTour, touring }) {
   const ThemeIcon = THEME_ICON[themeMode];
   return (
     <nav className="glass dock" aria-label="Tools">
@@ -107,6 +108,10 @@ export function Dock({ active, onTool, themeMode, onTheme, inspectorOpen, onTogg
         ))}
       </div>
       <span className="dock-sep" />
+      <button className={`dock-btn ${touring ? "is-on" : ""}`} onClick={onTour} title="Take the guided tour" aria-label="Take the guided tour">
+        <Compass size={17} strokeWidth={1.8} />
+        <span className="dock-btn-label">Tour</span>
+      </button>
       <button
         className="dock-btn"
         onClick={onTheme}
@@ -185,8 +190,67 @@ function MatrixRow({ L, data, levels }) {
   );
 }
 
+// ---------------------------------------------------------------- 12-month chart
+// The airport's estimate across the year (line), its 90% interval (band) and the national
+// rate (dashed). Click a month to jump the timeline there.
+function SeasonChart({ airport, data, month, onMonth }) {
+  const W = 300;
+  const H = 92;
+  const pad = { l: 4, r: 6, t: 8, b: 16 };
+  const nat = data.national.rate;
+  const max = Math.max(...airport.m.map((m) => m.hi), ...nat) * 1.08;
+  const x = (i) => pad.l + (i / 11) * (W - pad.l - pad.r);
+  const y = (v) => pad.t + (1 - v / max) * (H - pad.t - pad.b);
+  const path = (vals) => vals.map((v, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join("");
+  const band =
+    airport.m.map((m, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(m.hi).toFixed(1)}`).join("") +
+    [...airport.m].reverse().map((m, k) => `L${x(11 - k).toFixed(1)},${y(m.lo).toFixed(1)}`).join("") + "Z";
+  const cur = airport.m[month];
+  const code = airport.icao.length === 4 && airport.icao[0] === "K" ? airport.icao.slice(1) : airport.icao;
+
+  return (
+    <figure className="season-chart" aria-label={`${airport.icao} damaging-strike rate by month compared with national`}>
+      <figcaption>
+        <span className="k-line" />{code} estimate <span className="k-band" />90% interval <span className="k-nat" />national
+      </figcaption>
+      <svg viewBox={`0 0 ${W} ${H}`} role="img">
+        <path d={band} className="sc-band" />
+        <path d={path(nat)} className="sc-nat" />
+        <path d={path(airport.m.map((m) => m.r))} className="sc-line" />
+        <line x1={x(month)} x2={x(month)} y1={pad.t - 4} y2={H - pad.b} className="sc-now" />
+        <circle cx={x(month)} cy={y(cur.r)} r="3.6" className="sc-dot" />
+        {MONTHS.map((m, i) => (
+          <g key={m} onClick={() => onMonth(i)} className="sc-hit">
+            <rect x={x(i) - 12} y={0} width={24} height={H} />
+            <title>{`${MONTHS_LONG[i]}: ${fmtRate(airport.m[i].r)} (90% ${fmtRate(airport.m[i].lo)}-${fmtRate(airport.m[i].hi)}) vs national ${fmtRate(nat[i])}`}</title>
+            <text x={x(i)} y={H - 3} className={`sc-tick ${i === month ? "on" : ""}`}>{m[0]}</text>
+          </g>
+        ))}
+      </svg>
+    </figure>
+  );
+}
+
+function CopyLink() {
+  const [done, setDone] = useState(false);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setDone(true);
+      setTimeout(() => setDone(false), 1600);
+    } catch {
+      window.prompt("Copy this link:", window.location.href);
+    }
+  };
+  return (
+    <button className="icon-btn" onClick={copy} title="Copy a link to this view" aria-label="Copy a link to this view">
+      {done ? <Check size={15} /> : <Link2 size={15} />}
+    </button>
+  );
+}
+
 // ---------------------------------------------------------------- inspector (right)
-export function Inspector({ data, airport, month, mode, onClear, onShowTable }) {
+export function Inspector({ data, airport, month, mode, onClear, onShowTable, onMonth }) {
   const nat = data.national.rate[month];
   const m = airport?.m[month];
   const aboveCount = data.airports.filter((a) => a.m[month].rlo > 1).length;
@@ -199,11 +263,14 @@ export function Inspector({ data, airport, month, mode, onClear, onShowTable }) 
     <aside className="glass inspector" aria-live="polite">
       <div className="insp-head">
         <p className="label">{airport ? `${airport.icao} · ${airport.city}, ${airport.state}` : "National overview"}</p>
-        {airport && (
-          <button className="icon-btn" onClick={onClear} aria-label="Back to national overview">
-            <X size={15} />
-          </button>
-        )}
+        <div className="insp-actions">
+          <CopyLink />
+          {airport && (
+            <button className="icon-btn" onClick={onClear} aria-label="Back to national overview">
+              <X size={15} />
+            </button>
+          )}
+        </div>
       </div>
       <div className="fade" key={airport ? airport.icao : "national"}>
         <h2>{airport ? airport.name : `${MONTHS_LONG[month]} across the US`}</h2>
@@ -225,24 +292,27 @@ export function Inspector({ data, airport, month, mode, onClear, onShowTable }) 
           </div>
         </div>
 
-        <p className="prose">
+        {airport && <SeasonChart airport={airport} data={data} month={month} onMonth={onMonth} />}
+
+        <div className="story" key={`${airport ? airport.icao : "national"}-${month}-${mode}`}>
+          <p className="season">
+            <span className="season-dot" />
+            {SEASON[month].tag}
+          </p>
           {!airport ? (
             <>
-              Circles are sized by traffic and coloured against the national rate for {MONTHS_LONG[month]}. Pulsing
-              rings mark airports whose whole 90% interval sits above it. Select one to inspect it.
+              {nationalStory(data, month).lines.map((l) => <p key={l} className="prose">{l}</p>)}
+              <p className="prose soft">{SEASON[month].note}</p>
             </>
           ) : mode === "raw" ? (
-            <>
+            <p className="prose">
               Raw (own data only): {fmtRate(m.raw)} from {m.d} damaging strikes in {fmtInt(m.ops)} operations,{" "}
-              {MONTHS[month]} {data.meta.years[0]}–{data.meta.years[1]}.
-            </>
+              {MONTHS[month]} {data.meta.years[0]}–{data.meta.years[1]}. Switch to Estimated to see it pooled.
+            </p>
           ) : (
-            <>
-              Estimated with partial pooling across all {data.meta.airportCount} airports: {Math.round(m.sh * 100)}% of
-              this estimate comes from the national prior, the rest from {airport.icao}'s own {m.d} damaging strikes.
-            </>
+            airportStory(airport, data, month).lines.map((l) => <p key={l} className="prose">{l}</p>)
           )}
-        </p>
+        </div>
 
         <div className="risk-line">
           <p className="label">MIL-STD-882E</p>
@@ -293,6 +363,7 @@ export function Legend({ mode, month, theme }) {
           ? "Own counts, no pooling: small airports swing wildly."
           : "Rings: clearly above national · faded: within the noise · size: traffic"}
       </p>
+      <p className="legend-note fly"><i /> Flyways (approximate), shown in migration months</p>
     </div>
   );
 }
@@ -313,7 +384,7 @@ function Sparkline({ rates }) {
   );
 }
 
-export function Timeline({ month, national, onChange, onFloat }) {
+export function Timeline({ month, national, onChange, onFloat, jump }) {
   const [x, setX] = useState(month);
   const [playing, setPlaying] = useState(false);
   const xRef = useRef(month);
@@ -364,6 +435,15 @@ export function Timeline({ month, national, onChange, onFloat }) {
     return () => cancelAnimationFrame(anim.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playing]);
+
+  // Glide when another part of the app asks for a month (tour, chart clicks). Requests carry
+  // a counter so this never reacts to its own onChange echoes.
+  useEffect(() => {
+    if (!jump || !jump.n) return;
+    setPlaying(false);
+    glideTo(jump.month, 650);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jump?.n]);
 
   useEffect(() => () => cancelAnimationFrame(anim.current), []);
 

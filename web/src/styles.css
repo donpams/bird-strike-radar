@@ -136,7 +136,19 @@ b { font-weight: 600; color: var(--ink); }
 .readout { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
 .readout > div { background: var(--glass-strong); padding: 10px 12px; }
 .big { margin: 4px 0 2px; font-family: var(--mono); font-size: 26px; font-weight: 500; letter-spacing: -0.02em; color: var(--ink); line-height: 1.1; }
-.prose { color: var(--ink-2); margin: 12px 0; }
+.prose { color: var(--ink-2); margin: 0 0 8px; }
+.prose.soft { color: var(--ink-3); font-size: 12px; }
+.story { margin: 12px 0 10px; animation: fade-in 0.45s ease-out; }
+.season {
+  display: inline-flex; align-items: center; gap: 7px; margin: 0 0 8px; padding: 3px 9px 3px 7px;
+  border-radius: 999px; background: var(--accent-soft); color: var(--accent);
+  font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase;
+}
+.season-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; animation: blink 2.4s ease-in-out infinite; }
+@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+/* ambient flocks: above the map, below every panel, never catch the mouse */
+.birds { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
 
 .risk-line { display: flex; align-items: center; gap: 8px; margin: 4px 0 8px; }
 .chip {
@@ -282,3 +294,85 @@ tbody tr:hover { background: var(--hover); }
   .maplibregl-ctrl-bottom-right .maplibregl-ctrl-group { display: none; }
   .timeline { left: var(--gap); right: var(--gap); width: auto; min-width: 0; transform: none; animation-name: rise; }
 }
+
+/* ---------- flyway labels ---------- */
+.flyway-label {
+  font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--accent); opacity: 0; transition: opacity 0.9s ease; pointer-events: none; white-space: nowrap;
+  text-shadow: 0 0 6px var(--bg), 0 0 2px var(--bg);
+}
+.flyway-label.on { opacity: 0.75; }
+
+/* ---------- search (under the brand) ---------- */
+.search {
+  position: absolute; top: calc(var(--gap) + 66px); left: var(--gap); z-index: 4;
+  width: 264px; display: flex; align-items: center; gap: 8px; padding: 0 10px; height: 38px; color: var(--ink-3);
+  animation: rise 0.6s 0.05s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.search input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--ink); font: 13px var(--sans); }
+.search input::placeholder { color: var(--ink-3); }
+.search:focus-within { border-color: var(--accent); }
+.search kbd { font-family: var(--mono); font-size: 10px; color: var(--ink-3); border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; }
+.results { position: absolute; top: 44px; left: 0; right: 0; margin: 0; padding: 4px; list-style: none; background: var(--glass-strong); }
+.results li { display: grid; grid-template-columns: 44px 1fr; gap: 0 8px; padding: 6px 8px; border-radius: 6px; cursor: pointer; }
+.results li.hi { background: var(--hover); }
+.results .code { font-family: var(--mono); font-size: 12px; color: var(--accent); grid-row: span 2; align-self: center; }
+.results .nm { font-size: 12.5px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.results .loc { font-size: 11px; color: var(--ink-3); }
+
+/* ---------- tour card (left, under search) ---------- */
+.tour {
+  position: absolute; top: calc(var(--gap) + 116px); left: var(--gap); z-index: 4;
+  width: 300px; padding: 14px 16px 12px; animation: rise 0.45s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+}
+.tour-head { display: flex; justify-content: space-between; align-items: center; }
+.tour h3 { margin: 6px 0 6px; font-size: 16px; font-weight: 600; }
+.tour .prose { font-size: 12.5px; line-height: 1.5; }
+.tour-nav { display: flex; align-items: center; gap: 6px; margin-top: 10px; }
+.dots { display: flex; gap: 4px; margin-right: auto; }
+.dots span { width: 6px; height: 6px; border-radius: 50%; background: var(--line); transition: background-color 0.3s ease, transform 0.3s ease; }
+.dots span.on { background: var(--accent); transform: scale(1.25); }
+.tour-btn {
+  display: inline-flex; align-items: center; gap: 4px; height: 30px; padding: 0 12px; border-radius: 7px; border: 0;
+  background: var(--accent); color: var(--accent-ink); font-size: 12.5px; font-weight: 600; cursor: pointer;
+}
+.tour-btn.ghost { background: transparent; color: var(--ink-2); }
+.tour-btn:disabled { opacity: 0.35; cursor: default; }
+.dock-btn.is-on { background: var(--accent-soft); color: var(--accent); }
+
+/* ---------- inspector extras ---------- */
+.insp-actions { display: flex; gap: 2px; }
+.season-chart { margin: 12px 0 0; }
+.season-chart svg { width: 100%; height: auto; display: block; overflow: visible; }
+.sc-band { fill: var(--accent-soft); }
+.sc-line { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; }
+.sc-nat { fill: none; stroke: var(--ink-3); stroke-width: 1.2; stroke-dasharray: 3 3; }
+.sc-now { stroke: var(--ink-3); stroke-width: 1; stroke-opacity: 0.5; }
+.sc-dot { fill: var(--accent); stroke: var(--glass-strong); stroke-width: 2; }
+.sc-lab { font-family: var(--mono); font-size: 9.5px; fill: var(--ink-3); }
+.sc-lab.strong { fill: var(--accent); font-weight: 500; }
+.sc-hit rect { fill: transparent; cursor: pointer; }
+.sc-hit:hover rect { fill: var(--hover); }
+.sc-tick { font-family: var(--mono); font-size: 9px; fill: var(--ink-3); text-anchor: middle; }
+.sc-tick.on { fill: var(--accent); font-weight: 500; }
+.legend-note.fly { display: flex; align-items: center; gap: 6px; margin-top: 3px; }
+.legend-note.fly i { width: 18px; height: 0; border-top: 1.6px dashed var(--accent); opacity: 0.8; }
+
+@media (max-width: 720px) {
+  .search { top: calc(var(--gap) + 54px); width: calc(100% - 2 * var(--gap)); }
+  .search kbd { display: none; }
+  .inspector { top: calc(var(--gap) + 104px); }
+  .tour { top: auto; bottom: calc(var(--gap) + 150px); left: var(--gap); right: var(--gap); width: auto; }
+}
+
+.season-chart figcaption { display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 9.5px; color: var(--ink-3); margin-bottom: 4px; letter-spacing: 0.03em; }
+.season-chart figcaption span { display: inline-block; width: 14px; margin-left: 6px; }
+.season-chart figcaption span:first-child { margin-left: 0; }
+.k-line { height: 0; border-top: 2px solid var(--accent); }
+.k-band { height: 8px; background: var(--accent-soft); border-radius: 2px; }
+.k-nat { height: 0; border-top: 1.2px dashed var(--ink-3); }
+
+/* wind particles: above the basemap, never catch the mouse */
+.wind { position: absolute; top: 0; left: 0; pointer-events: none; }
+.legend-note.fly i { width: 18px; height: 2px; border: 0; border-radius: 2px; background: linear-gradient(90deg, transparent, var(--accent)); opacity: 0.9; }

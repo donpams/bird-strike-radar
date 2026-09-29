@@ -2,7 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import MapView from "./components/MapView.jsx";
 import { Brand, Dock, Hud, Inspector, Legend, Timeline } from "./components/Panels.jsx";
 import DataTable from "./components/DataTable.jsx";
+import Birds from "./components/Birds.jsx";
 import { useTheme } from "./theme.js";
+import Search from "./components/Search.jsx";
+import Tour from "./components/Tour.jsx";
+import { buildTour } from "./tour.js";
+import { readHash, writeHash } from "./url.js";
 
 const DATA_URL = `${import.meta.env.BASE_URL}data/radar.json`;
 const START_MONTH = 9; // October (0-based): the autumn migration peak
@@ -12,9 +17,15 @@ const fmtCoord = (v, pos, neg) => `${Math.abs(v).toFixed(2)}°${v >= 0 ? pos : n
 export default function App() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
-  const [month, setMonth] = useState(START_MONTH);
-  const [mode, setMode] = useState("estimated"); // "estimated" | "raw"
-  const [selected, setSelected] = useState(null); // ICAO or null
+  // A shared link (#m=dec&a=KDEN&v=raw) sets the starting view
+  const initial = useMemo(readHash, []);
+  const [month, setMonth] = useState(initial.month ?? START_MONTH);
+  const [mode, setMode] = useState(initial.mode ?? "estimated"); // "estimated" | "raw"
+  const [selected, setSelected] = useState(initial.airport); // ICAO or null
+  const [tourStep, setTourStep] = useState(null);
+  // Requests for the timeline to glide to a month (tour, chart clicks)
+  const [jump, setJump] = useState({ month: initial.month ?? START_MONTH, n: 0 });
+  const requestMonth = (m) => setJump((j) => ({ month: m, n: j.n + 1 }));
   const [inspectorOpen, setInspectorOpen] = useState(() => window.innerWidth >= 720);
   const [showTable, setShowTable] = useState(false);
   const [resetKey, setResetKey] = useState(0);
@@ -42,6 +53,28 @@ export default function App() {
     const t = setTimeout(() => setFading(false), 700);
     return () => clearTimeout(t);
   }, [theme]);
+
+  // Drop an airport code from a link that isn't in the study set
+  useEffect(() => {
+    if (data && selected && !data.airports.some((a) => a.icao === selected)) setSelected(null);
+  }, [data, selected]);
+
+  // Keep the URL in sync so any view can be shared
+  useEffect(() => {
+    writeHash({ month, airport: selected, mode });
+  }, [month, selected, mode]);
+
+  const tour = useMemo(() => (data ? buildTour(data) : []), [data]);
+  const goToStep = (i) => {
+    const s = tour[i];
+    if (!s) return;
+    setTourStep(i);
+    setMode(s.mode);
+    setSelected(s.airport);
+    requestMonth(s.month);
+    if (!s.airport) setResetKey((k) => k + 1);
+    setInspectorOpen(window.innerWidth >= 720 || !!s.airport);
+  };
 
   const airport = useMemo(
     () => (data && selected ? data.airports.find((a) => a.icao === selected) : null),
@@ -85,6 +118,7 @@ export default function App() {
         resetKey={resetKey}
         onCursor={onCursor}
       />
+      {data && <Birds month={month} national={data.national.rate} theme={theme} />}
       <div className={`theme-fade ${fading ? "on" : ""}`} aria-hidden="true" />
 
       <Brand data={data} />
@@ -95,7 +129,21 @@ export default function App() {
         onTheme={cycle}
         inspectorOpen={inspectorOpen}
         onToggleInspector={() => setInspectorOpen((o) => !o)}
+        touring={tourStep !== null}
+        onTour={() => (tourStep === null ? goToStep(0) : setTourStep(null))}
       />
+      {data && (
+        <Search
+          airports={data.airports}
+          onPick={(icao) => {
+            setSelected(icao);
+            setInspectorOpen(true);
+          }}
+        />
+      )}
+      {tourStep !== null && tour.length > 0 && (
+        <Tour steps={tour} step={tourStep} onStep={goToStep} onClose={() => setTourStep(null)} />
+      )}
 
       {data && inspectorOpen && (
         <Inspector
@@ -105,6 +153,7 @@ export default function App() {
           mode={mode}
           onClear={() => setSelected(null)}
           onShowTable={() => setShowTable(true)}
+          onMonth={requestMonth}
         />
       )}
       {data && <Legend mode={mode} month={month} theme={theme} />}
@@ -113,6 +162,7 @@ export default function App() {
           month={month}
           national={data.national.rate}
           onChange={setMonth}
+          jump={jump}
           onFloat={(x) => mapRef.current?.setMonthFloat(x)}
         />
       )}

@@ -1,6 +1,8 @@
 import { useEffect, useImperativeHandle, useRef } from "react";
 import maplibregl from "maplibre-gl";
 import { fmtRate, fmtRel, lerpLog, MONTHS, phaseOf, prefersReducedMotion, rawRelative, relColor } from "../scale.js";
+import { FLYWAYS, flywayGeoJSON, seasonOf } from "../flyways.js";
+import { createWind } from "../wind.js";
 
 const STYLES = {
   light: "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
@@ -75,10 +77,28 @@ export default function MapView({ ref, data, month, mode, theme, selected, onSel
   const map = useRef(null);
   const popup = useRef(null);
   const monthF = useRef(month);
-  const state = useRef({ mode, theme, selected });
+  const state = useRef({ mode, theme, selected, monthInt: month, flowDir: "north" });
   const hovered = useRef(null);
   const dataRef = useRef(data);
   dataRef.current = data; // handlers registered once read the latest data through this ref
+
+  // HTML labels for the flyways (independent of the basemap's fonts)
+  const labels = useRef([]);
+  const placeFlywayLabels = (on) => {
+    const m = map.current;
+    if (!labels.current.length) {
+      labels.current = FLYWAYS.map((f) => {
+        // MapLibre sets inline opacity on the marker element itself, so fade an inner span
+        const el = document.createElement("div");
+        const span = document.createElement("span");
+        span.className = "flyway-label";
+        span.textContent = f.name;
+        el.appendChild(span);
+        return new maplibregl.Marker({ element: el, anchor: "center" }).setLngLat(f.label).addTo(m);
+      });
+    }
+    labels.current.forEach((mk) => mk.getElement().firstChild.classList.toggle("on", on));
+  };
 
   const redraw = () => {
     const src = map.current?.getSource("airports");
@@ -100,6 +120,28 @@ export default function MapView({ ref, data, month, mode, theme, selected, onSel
     const data = dataRef.current;
     if (!m || !data || m.getSource("airports")) return;
     const dark = state.current.theme === "dark";
+
+    // Flyway corridors sit underneath everything else
+    const season = seasonOf(state.current.monthInt);
+    state.current.flowDir = season === "none" ? "north" : season;
+    m.addSource("flyways", { type: "geojson", data: flywayGeoJSON(state.current.flowDir) });
+    const on = season !== "none";
+    const flyColor = dark ? "#2dd4bf" : "#0e8f86";
+    m.addLayer({
+      id: "flyway-band",
+      type: "line",
+      source: "flyways",
+      layout: { "line-cap": "round", "line-join": "round" },
+      paint: {
+        "line-color": flyColor,
+        "line-width": ["interpolate", ["linear"], ["zoom"], 3, 34, 6, 90],
+        "line-blur": ["interpolate", ["linear"], ["zoom"], 3, 26, 6, 70],
+        "line-opacity": on ? (dark ? 0.07 : 0.05) : 0,
+        "line-opacity-transition": { duration: 900 },
+      },
+    });
+    placeFlywayLabels(on);
+
     m.addSource("airports", { type: "geojson", data: frame(data, monthF.current, state.current.mode, state.current.theme) });
     if (dark) {
       // Soft glow under the hot spots at night
@@ -224,8 +266,14 @@ export default function MapView({ ref, data, month, mode, theme, selected, onSel
       };
       raf = requestAnimationFrame(tick);
     }
+    // Wind-style particle flow along the flyways
+    const stopWind = prefersReducedMotion()
+      ? () => {}
+      : createWind(m, () => ({ month: state.current.monthInt, theme: state.current.theme }));
+
     return () => {
       cancelAnimationFrame(raf);
+      stopWind();
       m.remove();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -236,6 +284,23 @@ export default function MapView({ ref, data, month, mode, theme, selected, onSel
     if (data && map.current?.isStyleLoaded()) addLayers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data]);
+
+  // Month change: flyways appear in migration months and flow north (spring) or south (autumn)
+  useEffect(() => {
+    state.current.monthInt = month;
+    const m = map.current;
+    if (!m || !m.getLayer("flyway-band")) return;
+    const season = seasonOf(month);
+    const on = season !== "none";
+    const dark = state.current.theme === "dark";
+    m.setPaintProperty("flyway-band", "line-opacity", on ? (dark ? 0.07 : 0.05) : 0);
+    if (on && season !== state.current.flowDir) {
+      state.current.flowDir = season;
+      m.getSource("flyways").setData(flywayGeoJSON(season));
+    }
+    placeFlywayLabels(on);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [month]);
 
   // Mode change: recolour at the current fractional month
   useEffect(() => {
