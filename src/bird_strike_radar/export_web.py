@@ -57,8 +57,17 @@ def _round(v, nd=4):
     return v
 
 
+def _source():
+    """Use the Week 4 hierarchical estimates when they exist, otherwise the Week 2 baseline."""
+    from .fit_hier import HIER_PARQUET
+
+    if HIER_PARQUET.exists():
+        return pd.read_parquet(HIER_PARQUET), "Bayesian hierarchical model (Week 4)"
+    return pd.read_parquet(BASELINE_PARQUET), "Empirical-Bayes baseline (Week 2)"
+
+
 def run() -> dict:
-    b = pd.read_parquet(BASELINE_PARQUET)
+    b, model_label = _source()
     mix = pd.read_parquet(SEVERITY_PARQUET)
     study = pd.read_parquet(paths.STUDY_AIRPORTS_PARQUET)
     study = study[study.in_study].set_index("icao")
@@ -100,6 +109,7 @@ def run() -> dict:
             "credible": list(CREDIBLE),
             "minCommercialOps": MIN_COMMERCIAL_OPS,
             "definition": "Damaging strike = FAA damage level M, M?, S or D; unknown damage excluded.",
+            "model": model_label,
         },
         "national": {
             "rate": [round(float(x), 5) for x in national.rate],

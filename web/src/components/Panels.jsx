@@ -327,6 +327,8 @@ export function Inspector({ data, airport, month, mode, onClear, onShowTable, on
         <dd>{fmtDate(data.meta.generated)}</dd>
         <dt>FAA data</dt>
         <dd>{fmtDate(data.meta.strikeDataDownloaded)}</dd>
+        <dt>Model</dt>
+        <dd className="small">{data.meta.model ? data.meta.model.replace(/ \(Week \d\)/, "") : "Baseline"}</dd>
         <dt>Window</dt>
         <dd>{data.meta.years[0]}–{data.meta.years[1]}</dd>
         <dt>Records</dt>

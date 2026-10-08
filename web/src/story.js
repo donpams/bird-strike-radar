@@ -88,8 +88,8 @@ export function airportStory(airport, data, month) {
 
   const evidence =
     m.d === 0
-      ? `No damaging strikes were recorded here in any ${MONTHS_LONG[month]} of the study window, so the estimate leans on the national prior (${Math.round(m.sh * 100)}%).`
-      : `${m.d} damaging strike${m.d === 1 ? "" : "s"} across all ${MONTHS_LONG[month]}s in the study window; ${Math.round(m.sh * 100)}% of the estimate comes from the national prior.`;
+      ? `No damaging strikes were recorded here in any ${MONTHS_LONG[month]} of the study window, so the estimate leans mostly on the national and flyway pattern.`
+      : `${m.d} damaging strike${m.d === 1 ? "" : "s"} across all ${MONTHS_LONG[month]}s in the study window; the estimate leans ${m.sh > 0.6 ? "mostly" : m.sh > 0.3 ? "partly" : "only a little"} on the national and flyway pattern.`;
 
   return { lines: [seasonal, pattern, evidence].filter(Boolean) };
 }

@@ -3,11 +3,13 @@
 from . import (
     baseline,
     export_web,
+    fit_hier,
     ingest_airports,
     ingest_atads,
     ingest_strikes,
     report_week1,
     report_week2,
+    report_week4,
     study_airports,
 )
 
@@ -22,7 +24,13 @@ def main() -> None:
     # Week 2: baseline rates + MIL-STD-882E risk
     baseline.run()
     report_week2.run()
-    # Week 3: static data for the web map (web/public/data/radar.json)
+    # Week 4: Bayesian hierarchical model (a few minutes; set SKIP_HIER=1 to reuse the last fit)
+    import os
+
+    if not os.environ.get("SKIP_HIER"):
+        fit_hier.run()
+    report_week4.run()
+    # Static data for the web map (web/public/data/radar.json), from the best available model
     export_web.run()
 
 
