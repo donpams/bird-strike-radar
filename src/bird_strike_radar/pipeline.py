@@ -2,6 +2,7 @@
 
 from . import (
     baseline,
+    evaluate,
     export_web,
     fit_hier,
     ingest_airports,
@@ -10,6 +11,7 @@ from . import (
     report_week1,
     report_week2,
     report_week4,
+    report_week5,
     study_airports,
 )
 
@@ -30,6 +32,11 @@ def main() -> None:
     if not os.environ.get("SKIP_HIER"):
         fit_hier.run()
     report_week4.run()
+    # Week 5: temporal holdout (fit 2010-2022, forecast 2023-2025). Refits the hierarchical model,
+    # so it is also skipped by SKIP_HIER=1 (the report then uses the last evaluation)
+    if not os.environ.get("SKIP_HIER"):
+        evaluate.run()
+    report_week5.run()
     # Static data for the web map (web/public/data/radar.json), from the best available model
     export_web.run()
 
