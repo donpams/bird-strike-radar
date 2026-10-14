@@ -6,6 +6,7 @@ import Birds from "./components/Birds.jsx";
 import { useTheme } from "./theme.js";
 import Search from "./components/Search.jsx";
 import Tour from "./components/Tour.jsx";
+import Planner from "./components/Planner.jsx";
 import { buildTour } from "./tour.js";
 import { readHash, writeHash } from "./url.js";
 
@@ -26,8 +27,12 @@ export default function App() {
   // Requests for the timeline to glide to a month (tour, chart clicks)
   const [jump, setJump] = useState({ month: initial.month ?? START_MONTH, n: 0 });
   const requestMonth = (m) => setJump((j) => ({ month: m, n: j.n + 1 }));
-  const [inspectorOpen, setInspectorOpen] = useState(() => window.innerWidth >= 720);
+  // Panel starts closed on phones so the map shows first, unless the link is a shared plan
+  const [inspectorOpen, setInspectorOpen] = useState(() => window.innerWidth >= 720 || initial.plan != null);
   const [showTable, setShowTable] = useState(false);
+  // Mission Planner: open when the link carries a plan size; remembers the last plan size
+  const [planning, setPlanning] = useState(initial.plan != null);
+  const [ops, setOps] = useState(initial.plan ?? 60);
   const [resetKey, setResetKey] = useState(0);
   const [fading, setFading] = useState(false);
   const { mode: themeMode, theme, cycle } = useTheme();
@@ -61,14 +66,15 @@ export default function App() {
 
   // Keep the URL in sync so any view can be shared
   useEffect(() => {
-    writeHash({ month, airport: selected, mode });
-  }, [month, selected, mode]);
+    writeHash({ month, airport: selected, mode, plan: planning ? ops : null });
+  }, [month, selected, mode, planning, ops]);
 
   const tour = useMemo(() => (data ? buildTour(data) : []), [data]);
   const goToStep = (i) => {
     const s = tour[i];
     if (!s) return;
     setTourStep(i);
+    setPlanning(false);
     setMode(s.mode);
     setSelected(s.airport);
     requestMonth(s.month);
@@ -92,7 +98,17 @@ export default function App() {
   }, []);
 
   const onTool = (tool) => {
-    if (tool === "estimated" || tool === "raw") setMode(tool);
+    if (tool === "estimated" || tool === "raw") {
+      setMode(tool);
+      setPlanning(false);
+    }
+    if (tool === "planner") {
+      // The planner works from the pooled estimates, never raw counts
+      setMode("estimated");
+      setPlanning((p) => !p);
+      setTourStep(null);
+      setInspectorOpen(true);
+    }
     if (tool === "table") setShowTable(true);
     if (tool === "home") {
       setSelected(null);
@@ -123,7 +139,7 @@ export default function App() {
 
       <Brand data={data} />
       <Dock
-        active={showTable ? "table" : mode}
+        active={showTable ? "table" : planning ? "planner" : mode}
         onTool={onTool}
         themeMode={themeMode}
         onTheme={cycle}
@@ -145,7 +161,19 @@ export default function App() {
         <Tour steps={tour} step={tourStep} onStep={goToStep} onClose={() => setTourStep(null)} />
       )}
 
-      {data && inspectorOpen && (
+      {data && inspectorOpen && planning && (
+        <Planner
+          data={data}
+          airport={airport}
+          month={month}
+          ops={ops}
+          onOps={setOps}
+          onMonth={requestMonth}
+          onPick={setSelected}
+          onClose={() => setPlanning(false)}
+        />
+      )}
+      {data && inspectorOpen && !planning && (
         <Inspector
           data={data}
           airport={airport}

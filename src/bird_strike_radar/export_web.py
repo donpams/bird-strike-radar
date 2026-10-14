@@ -79,6 +79,11 @@ def run() -> dict:
         months = []
         for _, row in g.iterrows():
             rec = {k: _round(row[c]) for k, c in MONTH_FIELDS.items()}
+            # Rates keep 6 significant digits: the planner re-derives 882E levels from them, and
+            # rounding to 4 decimals could flip a level that sits right on a threshold
+            for k in ("r", "lo", "hi"):
+                v = row[MONTH_FIELDS[k]]
+                rec[k] = None if pd.isna(v) else float(f"{v:.6g}")
             # per-severity probability level (A-E) -> the four highlighted matrix cells
             rec["lv"] = [row[f"level_sev{k}"] for k in (1, 2, 3, 4)]
             months.append(rec)

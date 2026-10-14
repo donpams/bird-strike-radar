@@ -38,7 +38,7 @@ function useTween(value, ms = 450) {
   }, [value, ms]);
   return v;
 }
-const Num = ({ value, format }) => <>{format(useTween(value))}</>;
+export const Num = ({ value, format }) => <>{format(useTween(value))}</>;
 
 // ---------------------------------------------------------------- brand (top-left)
 function RadarMark() {
@@ -80,7 +80,7 @@ export function Brand({ data }) {
 const TOOLS = [
   { id: "estimated", icon: Flame, label: "Estimated", title: "Estimated risk (pooled model)" },
   { id: "raw", icon: MapIcon, label: "Raw", title: "Raw reports (each airport's own data)" },
-  { id: "planner", icon: Route, label: "Planner", title: "Mission Planner (coming soon)", disabled: true },
+  { id: "planner", icon: Route, label: "Planner", title: "Mission Planner: risk for a planned set of operations" },
   { id: "table", icon: Table2, label: "Table", title: "Data table" },
 ];
 const THEME_ICON = { auto: SunMoon, light: Sun, dark: Moon };
@@ -144,7 +144,7 @@ function nationalLevels(data, month) {
 }
 const SEV_SHORT = ["Cat", "Crit", "Marg", "Negl"];
 
-function RiskMatrix({ data, levels }) {
+export function RiskMatrix({ data, levels, caption }) {
   return (
     <div className="matrix" role="table" aria-label="MIL-STD-882E risk assessment matrix">
       <div className="matrix-grid">
@@ -159,8 +159,12 @@ function RiskMatrix({ data, levels }) {
         ))}
       </div>
       <p className="caption">
-        One cell per severity: likelihood of at least one such strike in {fmtInt(data.meta.exposureOps)} operations.
-        The worst cell sets the overall risk.
+        {caption ?? (
+          <>
+            One cell per severity: likelihood of at least one such strike in {fmtInt(data.meta.exposureOps)} operations.
+            The worst cell sets the overall risk.
+          </>
+        )}
       </p>
     </div>
   );
@@ -231,7 +235,7 @@ function SeasonChart({ airport, data, month, onMonth }) {
   );
 }
 
-function CopyLink() {
+export function CopyLink() {
   const [done, setDone] = useState(false);
   const copy = async () => {
     try {

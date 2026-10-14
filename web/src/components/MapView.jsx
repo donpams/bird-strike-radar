@@ -79,6 +79,10 @@ export default function MapView({ ref, data, month, mode, theme, selected, onSel
   const monthF = useRef(month);
   const state = useRef({ mode, theme, selected, monthInt: month, flowDir: "north" });
   const hovered = useRef(null);
+  // True once the current basemap style has fired "style.load". MapLibre's isStyleLoaded() stays
+  // false while fonts and tiles are still downloading, so it can't be used to decide whether
+  // layers can be added yet.
+  const styleReady = useRef(false);
   const dataRef = useRef(data);
   dataRef.current = data; // handlers registered once read the latest data through this ref
 
@@ -226,7 +230,10 @@ export default function MapView({ ref, data, month, mode, theme, selected, onSel
     map.current = m;
 
     m.once("load", () => m.easeTo({ ...HOME, duration: prefersReducedMotion() ? 0 : 2200 }));
-    m.on("style.load", addLayers);
+    m.on("style.load", () => {
+      styleReady.current = true;
+      addLayers();
+    });
     m.on("mousemove", (e) => onCursor?.(e.lngLat, m.getZoom()));
     m.on("zoom", () => onCursor?.(null, m.getZoom()));
 
@@ -279,9 +286,29 @@ export default function MapView({ ref, data, month, mode, theme, selected, onSel
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Data arrives after the map: add layers if the style is already there
+  // Data may arrive before or after the basemap style. If the style is already in place, add
+  // the layers now; otherwise the "style.load" handler adds them. As a final safety net, try
+  // again when the map next goes idle (addLayers does nothing if the layers already exist).
   useEffect(() => {
-    if (data && map.current?.isStyleLoaded()) addLayers();
+    const m = map.current;
+    if (!data || !m) return;
+    if (styleReady.current) {
+      try {
+        addLayers();
+        return;
+      } catch {
+        // style still settling: fall through to the idle retry
+      }
+    }
+    const retry = () => {
+      try {
+        addLayers();
+      } catch {
+        m.once("idle", retry);
+      }
+    };
+    m.once("idle", retry);
+    return () => m.off("idle", retry);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data]);
 
@@ -314,6 +341,7 @@ export default function MapView({ ref, data, month, mode, theme, selected, onSel
     const m = map.current;
     if (!m || state.current.theme === theme) return;
     state.current.theme = theme;
+    styleReady.current = false;
     m.setStyle(STYLES[theme], { diff: false });
   }, [theme]);
 
