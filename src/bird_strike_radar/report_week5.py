@@ -93,7 +93,7 @@ def build() -> str:
     score = pd.DataFrame({
         "Model": [LABELS[k] for k in MODELS],
         "Log score vs national (per 1,000 cells)": [gain(k) for k in MODELS],
-        f"90% range covers ({M['week4']['busy_cells']} busiest airport-months)": [f"{M[k]['coverage90_busy']:.0%}" for k in MODELS],
+        "90% range covers (airport-months it expects 2+ in)": [f"{M[k]['coverage90_busy']:.0%} of {M[k]['busy_cells']}" for k in MODELS],
         "Below 5% / above 95%": [f"{M[k]['pit_low']:.1%} / {M[k]['pit_high']:.1%}" for k in MODELS],
         "Forecast total (90%)": [_fmt_total(M[k]) for k in MODELS],
         "Covers observed?": [total_ok(k) for k in MODELS],

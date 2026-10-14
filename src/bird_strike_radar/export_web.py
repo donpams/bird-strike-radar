@@ -66,6 +66,38 @@ def _source():
     return pd.read_parquet(BASELINE_PARQUET), "Empirical-Bayes baseline (Week 2)"
 
 
+def _results() -> dict | None:
+    """Headline evaluation numbers for the site's results page, if the model checks have been run."""
+    from .evaluate import EVAL_JSON
+    from .fit_hier import DIAG_JSON
+    from .sim_check import SIM_JSON
+
+    if not (EVAL_JSON.exists() and DIAG_JSON.exists()):
+        return None
+    ev = json.loads(EVAL_JSON.read_text())
+    diag = json.loads(DIAG_JSON.read_text())
+    keep = ("log_score", "impossible_cells", "coverage90_busy", "busy_cells", "pit_low", "pit_high",
+            "forecast_total", "forecast_total_lo", "forecast_total_hi", "top10_lift")
+
+    def num(v):
+        return None if v is None or not np.isfinite(v) else round(float(v), 5)
+
+    return {
+        "trainYears": ev["train_years"],
+        "testYears": ev["test_years"],
+        "cells": ev["cells"],
+        "observedTotal": ev["observed_total"],
+        "observedByYear": {int(k): round(v, 5) for k, v in ev["observed_by_year"].items()},
+        "forecastByYear": {m: {int(y): [round(x, 5) for x in v] for y, v in ev["yearly_forecast"][m].items()}
+                           for m in ("week2", "week4")},
+        "models": {m: {k: num(ev["metrics"][m][k]) for k in keep} for m in ev["metrics"]},
+        "week4VsWeek2": {k: round(v, 6) for k, v in ev["week4_minus_week2_logscore"].items()},
+        "sampler": {"divergences": diag["divergences"], "worstRhat": round(diag["worst_r_hat"], 4),
+                    "minEss": round(diag["min_ess"])},
+        "simulation": json.loads(SIM_JSON.read_text()) if SIM_JSON.exists() else None,
+    }
+
+
 def run() -> dict:
     b, model_label = _source()
     mix = pd.read_parquet(SEVERITY_PARQUET)
@@ -127,6 +159,7 @@ def run() -> dict:
         "matrix": {L: [mil882.RISK_MATRIX[L][k] for k in (1, 2, 3, 4)] for L in "ABCDE"},
         "probability": {L: name for L, name in mil882.PROBABILITY.items()},
         "airports": airports,
+        "results": _results(),
     }
     WEB_DATA.parent.mkdir(parents=True, exist_ok=True)
     WEB_DATA.write_text(json.dumps(out, separators=(",", ":")))

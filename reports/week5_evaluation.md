@@ -13,13 +13,13 @@ future with their own uncertainty.
 
 ## Scorecard
 
-| Model | Log score vs national (per 1,000 cells) | 90% range covers (81 busiest airport-months) | Below 5% / above 95% | Forecast total (90%) | Covers observed? | Top-10% lift |
+| Model | Log score vs national (per 1,000 cells) | 90% range covers (airport-months it expects 2+ in) | Below 5% / above 95% | Forecast total (90%) | Covers observed? | Top-10% lift |
 |---|---|---|---|---|---|---|
-| National monthly rate | +0.0 | 93% | 4.1% / 7.1% | 1,052 (998-1,107) | **no** | 1.33x |
-| Raw (own data only) | impossible (213 airport-months given 0% chance) | 94% | 4.3% / 11.8% | 1,058 (1,007-1,111) | **no** | 2.48x |
-| Week 2 baseline | +24.5 | 87% | 4.8% / 6.6% | 1,055 (1,000-1,110) | **no** | 2.17x |
-| Week 2 + recent level | +25.2 | 88% | 4.4% / 5.9% | 1,098 (1,042-1,154) | **no** | 2.18x |
-| Week 4 hierarchical | +30.8 | 96% | 4.5% / 5.7% | 1,149 (1,012-1,313) | yes | 2.31x |
+| National monthly rate | +0.0 | 93% of 27 | 4.1% / 7.1% | 1,052 (998-1,107) | **no** | 1.33x |
+| Raw (own data only) | impossible (213 airport-months given 0% chance) | 94% of 86 | 4.3% / 11.8% | 1,058 (1,007-1,111) | **no** | 2.48x |
+| Week 2 baseline | +24.5 | 87% of 62 | 4.8% / 6.6% | 1,055 (1,000-1,110) | **no** | 2.17x |
+| Week 2 + recent level | +25.2 | 88% of 68 | 4.4% / 5.9% | 1,098 (1,042-1,154) | **no** | 2.18x |
+| Week 4 hierarchical | +30.8 | 96% of 81 | 4.5% / 5.7% | 1,149 (1,012-1,313) | yes | 2.31x |
 
 How to read it:
 - **Log score** is the main score: the average log-probability each model gave to what actually happened.

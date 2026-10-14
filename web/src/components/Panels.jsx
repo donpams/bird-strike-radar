@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
-  Check, Compass, Flame, House, Link2, Map as MapIcon, Moon, PanelRightClose, PanelRightOpen, Pause, Play, Route, Sun, SunMoon,
+  Check, ClipboardCheck, Compass, Flame, House, Link2, Map as MapIcon, Moon, PanelRightClose, PanelRightOpen, Pause, Play, Route, Sun, SunMoon,
   Table2, X,
 } from "lucide-react";
 import {
@@ -82,6 +82,7 @@ const TOOLS = [
   { id: "raw", icon: MapIcon, label: "Raw", title: "Raw reports (each airport's own data)" },
   { id: "planner", icon: Route, label: "Planner", title: "Mission Planner: risk for a planned set of operations" },
   { id: "table", icon: Table2, label: "Table", title: "Data table" },
+  { id: "results", icon: ClipboardCheck, label: "Results", title: "Results: does the model work?" },
 ];
 const THEME_ICON = { auto: SunMoon, light: Sun, dark: Moon };
 const THEME_LABEL = { auto: "Auto", light: "Day", dark: "Night" };

@@ -22,6 +22,8 @@ Built only on public data. Not affiliated with any employer or program. **Not fo
 - **Mission Planner:** pick an airport, month and number of operations. It gives the expected damaging
   strikes, the chance of at least one, the 882E risk *for that plan's exposure*, the same plan in other
   months, and nearby airports. Comparisons are only called "clear" when the 90% intervals don't overlap.
+- **Results:** how well the model forecast years it never saw, how it compared with simpler approaches,
+  and what it doesn't prove. Open it from the toolbar, or link straight to it with `#view=results`.
 
 ## Key results
 

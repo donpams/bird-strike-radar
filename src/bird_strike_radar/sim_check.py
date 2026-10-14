@@ -10,10 +10,12 @@ Passing this doesn't prove the model is right about the real world. It proves th
 the inference work: if the world looked like the model, we'd get the right answer with honest
 uncertainty. Real-world accuracy is tested in Week 5 (fit to 2010-2022, predict 2023-2025).
 
-Output: reports/week4_simulation_check.md
+Output: reports/week4_simulation_check.md, data/processed/sim_summary.json
 """
 
 from __future__ import annotations
+
+import json
 
 import numpy as np
 import pandas as pd
@@ -23,6 +25,7 @@ from . import hier_model as hm
 from . import paths
 from .baseline import build_panel, fit_gamma_prior
 
+SIM_JSON = paths.PROCESSED / "sim_summary.json"
 TRUTH = dict(b0=np.log(0.07), s_season=0.33, s_flyseason=0.17, s_airport=0.7, s_aseason=0.35,
              s_year=0.055, s_trend=0.09, phi=12.0)
 
@@ -166,10 +169,15 @@ is compared with the spread actually realised in the simulated draws.
 """
     paths.REPORTS.mkdir(exist_ok=True)
     (paths.REPORTS / "week4_simulation_check.md").write_text(md)
+    # Headline numbers for the website's results page
+    SIM_JSON.write_text(json.dumps({
+        k: {"coverage90": v["coverage_90"], "typical_error": float(np.expm1(v["median_abs_log_error"])),
+            "bias": float(np.expm1(v["mean_log_bias"])), "rank_corr": v["rank_corr"],
+            "interval_width": v["median_interval_width"]}
+        for k, v in (("hier", h), ("baseline", b))
+    } | {"divergences": res["divergences"]}, indent=2, default=float))
     print(f"report -> {(paths.REPORTS / 'week4_simulation_check.md').relative_to(paths.ROOT)}")
 
 
 if __name__ == "__main__":
-    import json
-
     print(json.dumps(run(), indent=2, default=float))

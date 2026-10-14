@@ -9,6 +9,7 @@ export function readHash() {
   const v = p.get("v");
   const plan = Number(p.get("plan"));
   return {
+    results: p.get("view") === "results",
     plan: Number.isFinite(plan) && plan >= 1 ? Math.min(1_000_000, Math.round(plan)) : null,
     month: m >= 0 ? m : null,
     airport: /^[A-Z0-9]{3,4}$/.test(a) ? a : null,
@@ -16,12 +17,13 @@ export function readHash() {
   };
 }
 
-export function writeHash({ month, airport, mode, plan }) {
+export function writeHash({ month, airport, mode, plan, results }) {
   const p = new URLSearchParams();
   p.set("m", MONTH_KEYS[month]);
   if (airport) p.set("a", airport);
   if (mode === "raw") p.set("v", "raw");
   if (plan) p.set("plan", String(plan));
+  if (results) p.set("view", "results");
   const next = `#${p.toString()}`;
   if (window.location.hash !== next) history.replaceState(null, "", next);
 }

@@ -5,3 +5,4 @@ __pycache__/
 .ipynb_checkpoints/
 node_modules/
 web/dist/
+.DS_Store

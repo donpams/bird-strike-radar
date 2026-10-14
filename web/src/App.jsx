@@ -7,6 +7,7 @@ import { useTheme } from "./theme.js";
 import Search from "./components/Search.jsx";
 import Tour from "./components/Tour.jsx";
 import Planner from "./components/Planner.jsx";
+import Results from "./components/Results.jsx";
 import { buildTour } from "./tour.js";
 import { readHash, writeHash } from "./url.js";
 
@@ -30,6 +31,7 @@ export default function App() {
   // Panel starts closed on phones so the map shows first, unless the link is a shared plan
   const [inspectorOpen, setInspectorOpen] = useState(() => window.innerWidth >= 720 || initial.plan != null);
   const [showTable, setShowTable] = useState(false);
+  const [showResults, setShowResults] = useState(initial.results);
   // Mission Planner: open when the link carries a plan size; remembers the last plan size
   const [planning, setPlanning] = useState(initial.plan != null);
   const [ops, setOps] = useState(initial.plan ?? 60);
@@ -66,8 +68,8 @@ export default function App() {
 
   // Keep the URL in sync so any view can be shared
   useEffect(() => {
-    writeHash({ month, airport: selected, mode, plan: planning ? ops : null });
-  }, [month, selected, mode, planning, ops]);
+    writeHash({ month, airport: selected, mode, plan: planning ? ops : null, results: showResults });
+  }, [month, selected, mode, planning, ops, showResults]);
 
   const tour = useMemo(() => (data ? buildTour(data) : []), [data]);
   const goToStep = (i) => {
@@ -110,6 +112,7 @@ export default function App() {
       setInspectorOpen(true);
     }
     if (tool === "table") setShowTable(true);
+    if (tool === "results") setShowResults(true);
     if (tool === "home") {
       setSelected(null);
       setResetKey((k) => k + 1);
@@ -139,7 +142,7 @@ export default function App() {
 
       <Brand data={data} />
       <Dock
-        active={showTable ? "table" : planning ? "planner" : mode}
+        active={showResults ? "results" : showTable ? "table" : planning ? "planner" : mode}
         onTool={onTool}
         themeMode={themeMode}
         onTheme={cycle}
@@ -196,6 +199,7 @@ export default function App() {
       )}
       <Hud hudRef={hudRef} />
 
+      {showResults && data && <Results data={data} onClose={() => setShowResults(false)} />}
       {showTable && data && (
         <DataTable
           data={data}
